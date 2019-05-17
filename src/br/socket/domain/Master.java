@@ -21,11 +21,17 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
 
 import br.utils.WordCount;
 
 public class Master {
+	
+	static Master master = new Master();
+	
+	private static ArrayList<String> req = new ArrayList<String>();
 
 	private static ServerSocket welcomeSocket;
 	private static Socket connectionSocket;
@@ -33,111 +39,92 @@ public class Master {
 	private static Socket clientSocket;
 	
 	private static String filePath;
-	private static int contThread;
-	
+	private static int contThread=0;
+	private static int descarte=0;
 	
 	private String ip;
 	private Integer port = 1234;
 
 	public static void main(String[] args) throws UnknownHostException, IOException {
 		System.err.println("MASTER");
+
+		master.createConnection();
 		
 		while(true) {
-			Master master = new Master();
-			long start = System.currentTimeMillis();
-			master.createConnection();
-			String receiveFile = master.readDataClient();		
-			System.out.println("Arquivo recebido no master: " + receiveFile);
 			
-			String conta = receiveFile.split(";")[1];
-			contThread = new Integer(conta);
-			master.execute(receiveFile.split(";")[0]);
-			welcomeSocket.close();
-			connectionSocket.close();
+			long start = System.currentTimeMillis();
+			
+			long i = System.currentTimeMillis();
+			//try { Thread.sleep (1000); } catch (InterruptedException ex) {}
+			while((System.currentTimeMillis() - i) < 5000) {
+				String z = master.receiveFile();
+				if(z != null) {
+					req.add(z);
+					break;
+				}
+			}
+			
+			i=0;
+			//GERENCIAMENTO DA FILA
+			contThread = req.size();
+			
+			System.out.println("a= "+req.get(0));
+			ArrayList<String> ips = getIps(); //pega a quantidade de servidores
+						
+			System.out.println("contt: " + contThread);
+			if(contThread > 40) {
+				descarte = contThread - 40;
+				contThread = 40;
+				System.out.println("Descarte: " + descarte);
+			}
+			int a = 0;
+			while(contThread > 0) {
+				System.out.println("entrou");
+				if(contThread == 1) {
+					String port = ips.get(0).split(";")[1];
+					int p = new Integer(port);
+					master.execute(req.get(0), ips.get(0).split(";")[0], p);
+					contThread --;
+				}else {
+					for(String c : ips) {
+							String port = c.split(";")[1];
+							int p = new Integer(port);
+							master.execute(req.get(0), c.split(";")[0], p);
+							contThread --;
+					}
+				}
+				
+			}
+			req.clear();
+			contThread = 0;
+			descarte =0;
+			
+			//welcomeSocket.close();
+			//connectionSocket.close();
+			
 		}
-		//clientSocket.close();
-		/*
-		double tempoTotal = System.currentTimeMillis() - start;
-		System.out.println("Processing Time (ms): " + tempoTotal);
-		salvaTempos(tempoTotal+"");
-		*/
 	}
 	
 	private static void salvaTempos(String tempoTotal ) {
-		
 		try(FileWriter fw = new FileWriter("TempoMaster.txt", true);
 			    BufferedWriter bw = new BufferedWriter(fw);
 			    PrintWriter out = new PrintWriter(bw))
 			{
 			    out.println(tempoTotal);
-			    
 			} catch (IOException e) {
 			    //exception handling left as an exercise for the reader
 			}
-		
-	
 	}
 	
-
-	public void execute(String filePath) throws FileNotFoundException, IOException {
+	public void execute(String filePath, String ip, int port) throws FileNotFoundException, IOException {
 		//esse vai ser o método chamado por ClientManager
 		//long start = System.currentTimeMillis();
+				
+		String file = preparaArquivo(filePath); //ler o arquivo
+		System.out.println("caminho: " + ip + port);
 		
-		//int cont=0;
-		//while(cont<1) {
-		ArrayList<String> ips = getIps();
-		ArrayList<Integer> req = new ArrayList();
-		
-		int qtdServer = ips.size();
-		int cont=0;
-		int frenteFila = 1;
-		while (contThread > 0) {
-			
-			for(String a : ips) {
-				
-				String file = preparaArquivo(filePath); //ler o arquivo
-				System.out.println("caminho: " + a.split(";")[0] + a.split(";")[1]);
-				String p = a.split(";")[1];
-			
-				
-				int portS = new Integer(p);
-				createConnectionServer(a.split(";")[0], portS); //conectar ao server
-				enviarArquivo(file); //enviar arquivo para o server
-				
-				contThread -= qtdServer;
-			}
-		}
-			/*
-			ArrayList<String> caminhos = new ArrayList();
-			caminhos = getIps();
-			
-			String port = st.split(";")[1];
-			Integer p = new Integer(port);
-			clients.add(new Client(st.split(";")[0], p,filePath));
-			
-			int i = 0;
-			
-		    for (String st: caminhos) {
-		    	String port = st.split(";")[1];
-		    	Integer p = new Integer(port);
-		    	createConnectionServer();
-		    	
-		    	//if(serv.usageCPU() < 10) {
-		    	//System.out.println("Enviado pro servidor: " + st.split(";")[0] + "/" + p);
-		    	enviarArquivo(file);
-		    	
-		    	//}
-		    	//clientSocket.close();
-		    	//System.out.printf("Posição %d- %s\n", i, contato);
-		        //i++;
-		    }
-		    cont++;
-		    
-		    //try { Thread.sleep (5000); } catch (InterruptedException ex) {}
-		//}		
-		 //adicionar parâmetros de acordo com o balanceamento de carga
-		  * */
-		 
+		createConnectionServer(ip, port); //conectar ao server
+		enviarArquivo(file); //enviar arquivo para o server
 	}
 	
 	private static ArrayList<String> getIps() {
@@ -201,14 +188,8 @@ public class Master {
 		DataOutputStream dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
 		dataOutputStream.writeBytes(file);
 		dataOutputStream.flush();
-
-		//DataInputStream c = new DataInputStream(clientSocket.getInputStream());
-	    //System.err.println("The result from server was: \n" + readData());
-
-	    dataOutputStream.close();
-	    //clientSocket.close();
+	    //dataOutputStream.close();
 	}
-	
 	private String receiveFile() throws IOException {
 		String receivedFile = null;
 		DataInputStream  dataInputStream = new DataInputStream(connectionSocket.getInputStream());
@@ -216,26 +197,15 @@ public class Master {
 		while (true) {
 			if (dataInputStream.available() > 0) {
 				receivedFile = dataInputStream.readLine();
-				System.out.println(receivedFile);
+				System.out.println("received = "+receivedFile);
 				
 				break;
-			} 
+			}
 		}
-		connectionSocket.close();
-		welcomeSocket.close();
 		
-		Master master = new Master();
 		
-		System.out.println("final: "+ receivedFile);
-		
-		System.out.println("caminho: "+ receivedFile.split(";")[0] + receivedFile.split(";")[1]);
-		//filePath = receivedFile.split(";")[0];
-		String ct = receivedFile.split(";")[1];
-		contThread = new Integer(ct);
-		
-		return receivedFile.split(";")[0];
+		return receivedFile;
 	}
-	
 	
 	
 	private String readDataClient() {
@@ -248,18 +218,4 @@ public class Master {
 	    }
 	    
 	}
-	
-	private void returnResultToClient(String result) throws IOException {
-		OutputStream socketStream = connectionSocket.getOutputStream();
-        ObjectOutputStream objectOutput = new ObjectOutputStream(socketStream);
-        objectOutput.writeObject(result);
-        objectOutput.close();
-        socketStream.close();
-	}
-	
-	@Override
-	public String toString() {
-		return "CLIENT CONFIGURED WITH ... server ip: " + this.ip +" server port: " + this.port;
-	}
-
 }

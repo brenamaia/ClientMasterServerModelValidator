@@ -31,13 +31,12 @@ public class Server {
 	 * Don't forget to pass the port as parameter
 	 */
 	public static void main(String[] args) throws UnknownHostException, IOException {
-		System.err.println("SERVER");
-		Server serv = new Server();
-		//serv.createConnection();
 		
-	
 		int cont =0;
 		while(true) {
+			Server serv = new Server();
+			System.err.println("SERVER");
+			
 			serv.createConnection();
 			String receiveFile = serv.receiveFile();
 			long start = System.currentTimeMillis();

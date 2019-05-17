@@ -38,7 +38,7 @@ public class ClientManager {
 	private String filePath;
 	private static String tempoChegada;
 	
-	private static int contThread =0;
+	//private static int contThread =0;
 	
 	/*
 	public ClientManager(String ip, int port) {
@@ -47,62 +47,41 @@ public class ClientManager {
 	}*/
 	
 	public static void main(String[] args)  throws UnknownHostException, IOException {
-		/*
-		ClientManager client = new ClientManager();
-		client.enviarArquivoClient("origin.txt");
-		clientSocket.close();
-		*/
 		
 		
-			
+		
 		final CountDownLatch latch;
-		ArrayList<String> ips =  getIps("origin.txt", "ipServidores.txt");
-		String tempo = "1";
-		//ArrayList<String> ips =  getIps(args[0], args[1]);
-		//String tempo = args[2];
-		int tempoChegada = new Integer(tempo);
 		
-		//final ClientManager client = null;
-		latch = new CountDownLatch(ips.size());
+		ArrayList<String> ips =  getIps("ipServidores.txt");
+		String tempo = "1000";
 		
-		final ClientManager client = new ClientManager();
 		
-		for (String a : ips) {
-			(new ThreadClient(latch, client)).start();
-			contThread++;
-		}
-		/*
-		
-		latch = new CountDownLatch(ips.size());
+		latch = new CountDownLatch(1);
 		
 		//envia requisições a cada tempoChegada ms
 		int delay = 0;   // delay de 0ms
 		int interval = 1000;  // intervalo de AD msg.
-		Timer timer = new Timer();
+		Timer timer = new Timer();		
 		
 		final ClientManager client = new ClientManager();
 		
 		timer.scheduleAtFixedRate(new TimerTask() {
 		        public void run() {
-		        	(new ThreadClient(latch, client)).start();
-					contThread +=1; 
+		        	(new ThreadClient(latch, client, "origin.txt")).start();
+					//contThread +=1; 
 		        }
-		    }, delay, interval);
-		*/
+		    }, 0, interval);
+		/*
 		try {
             latch.await();  
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-		//try { Thread.sleep (tempoChegada); } catch (InterruptedException ex) {}
-					
+        */
 		
-		
-			//try { Thread.sleep (tempoChegada); } catch (InterruptedException ex) {}
-
 	}
 	
-	private static ArrayList<String> getIps(String filePath,String propertiesFile) {
+	private static ArrayList<String> getIps(String propertiesFile) {
 		ArrayList<String> ips =  new ArrayList<String>();
 		File f = new File(propertiesFile); //ipServidores.txt
 		try {
@@ -111,16 +90,12 @@ public class ClientManager {
             String st; 
       	  	while ((st = br.readLine()) != null && st.contains(";")) {
       			ips.add(st);
-      			//ips.add(st.split(";")[0], st.split(";")[1]);
       	  	}
-      	  	//qtdServer = ips.size();
         } catch (IOException e) {
             System.out.println("###### Erro: "+e.getMessage());
             e.printStackTrace();
         }
-		
-		return ips;
-		
+		return ips;	
 	}
 	
 	private static void salvaTempos(String tempoTotal ) {
@@ -135,48 +110,17 @@ public class ClientManager {
 			}
 	}
 	
+
 	public void enviarArquivoClient(String filePath) throws IOException {
-
-		clientSocket = new Socket("localhost", 1234); 
-		OutputStream socketStream = clientSocket.getOutputStream();
-        ObjectOutputStream objectOutput = new ObjectOutputStream(socketStream);
-        String dados = filePath + ";" +contThread;
-        System.out.println("dados"+dados);
-        
-        objectOutput.writeObject(dados);
-        objectOutput.close();
-        socketStream.close();
-        
-        clientSocket.close();
-		contThread = 0;
-	}
-	
-	public void enviarArquivoClient1(String filePath) throws IOException {
-
-		//conectando ao master
-		clientSocket = new Socket("localhost", 1234); 
 		
-		OutputStream socketStream = clientSocket.getOutputStream();
-        ObjectOutputStream objectOutput = new ObjectOutputStream(socketStream);
-        System.out.println("aq: "+filePath + ";"+ contThread);
-        objectOutput.writeObject(filePath + ";"+ contThread);
-        objectOutput.close();
-        socketStream.close();
-		
-		/*
+		clientSocket = new Socket("localhost", 1234);
 		DataOutputStream dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
-		dataOutputStream.writeBytes(filePath + ";"+ contThread);
-		System.out.println(filePath + ";"+ contThread);
+		dataOutputStream.writeBytes(filePath);
+		System.out.println(filePath);
 		dataOutputStream.flush();		
 		dataOutputStream.close();
-		*/
-        
 		clientSocket.close();
-		contThread = 0;
 		
 	}
-	
-
-	
-	
+		
 }
