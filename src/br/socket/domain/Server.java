@@ -32,12 +32,13 @@ public class Server {
 	 */
 	public static void main(String[] args) throws UnknownHostException, IOException {
 		
-		int cont =0;
+		
 		while(true) {
 			Server serv = new Server();
 			System.err.println("SERVER");
-			
 			serv.createConnection();
+			
+			
 			String receiveFile = serv.receiveFile();
 			long start = System.currentTimeMillis();
 			String wordCount = WordCount.wordCount(receiveFile);
@@ -46,10 +47,10 @@ public class Server {
 			System.out.println("Processing Time (ms): " + tempoTotal);
 			salvaTempos(tempoTotal+"");
 			
-			//serv.returnResultToClient(wordCount);
-			connectionSocket.close();
+			serv.returnResultToClient(wordCount);
 			welcomeSocket.close();
-			cont++;
+			connectionSocket.close();
+			
 			//try { Thread.sleep (2000); } catch (InterruptedException ex) {}
 		}
 	}
@@ -98,7 +99,7 @@ public class Server {
 	private void returnResultToClient(String result) throws IOException {
 		OutputStream socketStream = connectionSocket.getOutputStream();
         ObjectOutputStream objectOutput = new ObjectOutputStream(socketStream);
-        System.out.println(result);
+        //System.out.println(result);
         objectOutput.writeObject(result);
         objectOutput.close();
         socketStream.close();

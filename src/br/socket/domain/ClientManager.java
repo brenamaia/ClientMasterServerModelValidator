@@ -14,8 +14,10 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.InputMismatchException;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -38,7 +40,6 @@ public class ClientManager {
 	private String filePath;
 	private static String tempoChegada;
 	
-	//private static int contThread =0;
 	
 	/*
 	public ClientManager(String ip, int port) {
@@ -56,7 +57,8 @@ public class ClientManager {
 		String tempo = "1000";
 		
 		
-		latch = new CountDownLatch(1);
+		
+		latch = new CountDownLatch(5);
 		
 		//envia requisições a cada tempoChegada ms
 		int delay = 0;   // delay de 0ms
@@ -68,7 +70,7 @@ public class ClientManager {
 		timer.scheduleAtFixedRate(new TimerTask() {
 		        public void run() {
 		        	(new ThreadClient(latch, client, "origin.txt")).start();
-					//contThread +=1; 
+					
 		        }
 		    }, 0, interval);
 		/*
@@ -76,8 +78,9 @@ public class ClientManager {
             latch.await();  
         } catch (InterruptedException e) {
             e.printStackTrace();
-        }
-        */
+        }*/
+		//clientSocket.close();
+        
 		
 	}
 	
@@ -113,13 +116,18 @@ public class ClientManager {
 
 	public void enviarArquivoClient(String filePath) throws IOException {
 		
-		clientSocket = new Socket("localhost", 1234);
-		DataOutputStream dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
-		dataOutputStream.writeBytes(filePath);
-		System.out.println(filePath);
-		dataOutputStream.flush();		
-		dataOutputStream.close();
-		clientSocket.close();
+		try {
+			clientSocket = new Socket("localhost", 1234);
+			DataOutputStream dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
+			dataOutputStream.writeBytes(filePath);
+			System.out.println(filePath);
+			dataOutputStream.flush();		
+			dataOutputStream.close();
+			//clientSocket.close();
+		}catch (SocketException erro1) {
+            System.err.println("pipe quebrado");
+            
+        }
 		
 	}
 		

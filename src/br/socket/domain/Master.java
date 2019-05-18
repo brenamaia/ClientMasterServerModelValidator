@@ -48,28 +48,35 @@ public class Master {
 	public static void main(String[] args) throws UnknownHostException, IOException {
 		System.err.println("MASTER");
 
-		master.createConnection();
+		//master.createConnection();
 		
 		while(true) {
 			
 			long start = System.currentTimeMillis();
 			
-			long i = System.currentTimeMillis();
-			//try { Thread.sleep (1000); } catch (InterruptedException ex) {}
-			while((System.currentTimeMillis() - i) < 5000) {
-				String z = master.receiveFile();
-				if(z != null) {
-					req.add(z);
-					break;
-				}
-			}
+			master.createConnection();
 			
-			i=0;
+			//long i = System.currentTimeMillis();
+			//try { Thread.sleep (1000); } catch (InterruptedException ex) {}
+			//while((System.currentTimeMillis() - i) < 5000) {
+			//	String z = master.receiveFile();
+			//	if(z != null) {
+					//req.add(master.receiveFile());
+				//}
+			//}
+			
+			
+			ArrayList<String> ips = getIps(); //pega a quantidade de servidores
+			
+			master.receiveFile();
+			
+			connectionSocket.close();
+			welcomeSocket.close();
+			
+			//i=0;
 			//GERENCIAMENTO DA FILA
 			contThread = req.size();
 			
-			System.out.println("a= "+req.get(0));
-			ArrayList<String> ips = getIps(); //pega a quantidade de servidores
 						
 			System.out.println("contt: " + contThread);
 			if(contThread > 40) {
@@ -79,25 +86,29 @@ public class Master {
 			}
 			int a = 0;
 			while(contThread > 0) {
-				System.out.println("entrou");
+				//System.out.println("entrou");
 				if(contThread == 1) {
 					String port = ips.get(0).split(";")[1];
 					int p = new Integer(port);
-					master.execute(req.get(0), ips.get(0).split(";")[0], p);
+					master.execute(req.get(a), ips.get(0).split(";")[0], p);
 					contThread --;
+					//clientSocket.close();
 				}else {
 					for(String c : ips) {
 							String port = c.split(";")[1];
 							int p = new Integer(port);
-							master.execute(req.get(0), c.split(";")[0], p);
+							master.execute(req.get(a), c.split(";")[0], p);
 							contThread --;
+							//clientSocket.close();
 					}
 				}
-				
+				a++;
 			}
 			req.clear();
 			contThread = 0;
 			descarte =0;
+			
+			
 			
 			//welcomeSocket.close();
 			//connectionSocket.close();
@@ -121,7 +132,7 @@ public class Master {
 		//long start = System.currentTimeMillis();
 				
 		String file = preparaArquivo(filePath); //ler o arquivo
-		System.out.println("caminho: " + ip + port);
+		//System.out.println("caminho: " + ip + port);
 		
 		createConnectionServer(ip, port); //conectar ao server
 		enviarArquivo(file); //enviar arquivo para o server
@@ -149,9 +160,9 @@ public class Master {
 
 	private void createConnection() throws IOException {
 		welcomeSocket = new ServerSocket(port);
-		System.out.println("Port "+port+" opened!");
+		//System.out.println("Port "+port+" opened!");
 		connectionSocket = welcomeSocket.accept();
-		System.out.println("Server: new connection with client: " + connectionSocket.getInetAddress().getHostAddress());
+		//System.out.println("Server: new connection with client: " + connectionSocket.getInetAddress().getHostAddress());		
 	}
 	
 	private void createConnectionServer(String ipS, int portS) throws IOException {
@@ -188,12 +199,32 @@ public class Master {
 		DataOutputStream dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
 		dataOutputStream.writeBytes(file);
 		dataOutputStream.flush();
-	    //dataOutputStream.close();
+		System.out.println(readData());
+	    dataOutputStream.close();
+	    //clientSocket.close();
 	}
-	private String receiveFile() throws IOException {
+	private void receiveFile() throws IOException {
 		String receivedFile = null;
-		DataInputStream  dataInputStream = new DataInputStream(connectionSocket.getInputStream());
-
+		
+		
+		long i = System.currentTimeMillis();
+		
+		while((System.currentTimeMillis() - i) < 5000) {
+			DataInputStream  dataInputStream = new DataInputStream(connectionSocket.getInputStream());
+			if (dataInputStream.available() > 0) {
+				req.add(dataInputStream.readLine());
+				//System.out.println("sa");
+				
+			}
+			//dataInputStream.close();
+			connectionSocket.close();
+			welcomeSocket.close();
+			createConnection();
+		}
+		
+		
+		
+		/*
 		while (true) {
 			if (dataInputStream.available() > 0) {
 				receivedFile = dataInputStream.readLine();
@@ -201,16 +232,15 @@ public class Master {
 				
 				break;
 			}
-		}
+		}*/
 		
 		
-		return receivedFile;
+		
 	}
 	
-	
-	private String readDataClient() {
+	private static String readData() {
 	    try {
-	    InputStream is = connectionSocket.getInputStream();
+	    InputStream is = clientSocket.getInputStream();
 	    ObjectInputStream ois = new ObjectInputStream(is);
 	     return (String)ois.readObject();
 	    } catch(Exception e) {
