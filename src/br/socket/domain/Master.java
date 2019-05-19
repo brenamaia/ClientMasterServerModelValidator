@@ -31,18 +31,21 @@ public class Master {
 	
 	static Master master = new Master();
 	
-	private static ArrayList<String> req = new ArrayList<String>();
-
 	private static ServerSocket welcomeSocket;
 	private static Socket connectionSocket;
 	
 	private static Socket clientSocket;
 	
-	private static String filePath;
-	private static int contThread=0;
+	private static int capacidade=40;
+	private static int ocupadosM=0;
 	private static int descarte=0;
 	
-	private String ip;
+	private static int capacidadeS=0;
+	private static int ocupadosS=0;
+	private static ArrayList<String> ips = getIps(); //pega a quantidade de servidores
+	
+	//ArrayList<String> req = new ArrayList();
+	
 	private Integer port = 1234;
 
 	public static void main(String[] args) throws UnknownHostException, IOException {
@@ -50,70 +53,106 @@ public class Master {
 
 		//master.createConnection();
 		
+		
+		
+		capacidadeS = ips.size();
+				
 		while(true) {
 			
 			long start = System.currentTimeMillis();
 			
 			master.createConnection();
 			
-			//long i = System.currentTimeMillis();
-			//try { Thread.sleep (1000); } catch (InterruptedException ex) {}
-			//while((System.currentTimeMillis() - i) < 5000) {
-			//	String z = master.receiveFile();
-			//	if(z != null) {
-					//req.add(master.receiveFile());
-				//}
-			//}
+			String msg = master.receive();
 			
-			
-			ArrayList<String> ips = getIps(); //pega a quantidade de servidores
-			
-			master.receiveFile();
-			
-			connectionSocket.close();
-			welcomeSocket.close();
-			
-			//i=0;
-			//GERENCIAMENTO DA FILA
-			contThread = req.size();
-			
-						
-			System.out.println("contt: " + contThread);
-			if(contThread > 40) {
-				descarte = contThread - 40;
-				contThread = 40;
-				System.out.println("Descarte: " + descarte);
+			if(msg.equals("status")) {
+				
+				returnResultToClient((capacidade-ocupadosM) + "");
 			}
-			int a = 0;
-			while(contThread > 0) {
-				//System.out.println("entrou");
-				if(contThread == 1) {
-					String port = ips.get(0).split(";")[1];
-					int p = new Integer(port);
-					master.execute(req.get(a), ips.get(0).split(";")[0], p);
-					contThread --;
-					//clientSocket.close();
-				}else {
-					for(String c : ips) {
-							String port = c.split(";")[1];
-							int p = new Integer(port);
-							master.execute(req.get(a), c.split(";")[0], p);
-							contThread --;
-							//clientSocket.close();
-					}
-				}
-				a++;
+			
+			if((capacidade-ocupadosM) > 0) {
+				String req = master.receive();
+				ocupadosM++;
+				//CASO NÃO SEJA NECESSÁRIO ESTABELECER CONEXÃO PRA CADA REQUISIÇÃO, REMOVER ISSO:
+				connectionSocket.close();
+				welcomeSocket.close();
+				
+				//DataOutputStream dataOutputStream = null;
+				int h=0;
+	    		if(ocupadosM <= capacidadeS){
+	    			while(ocupadosM > 0) {
+	    				if(ips.get(h).split(";")[2] == "disponivel") {
+	    					String porta =  ips.get(h).split(";")[1];
+	    					int p = new Integer(porta);
+	    					new ThreadClient(ips.get(h).split(";")[0], p, req, h).start();
+			    			ocupadosM--;
+			    			ips.remove(h);
+			    			ips.add(ips.get(h).split(";")[0] + ";" + p + ";" + "indisponivel");
+			    			h++;
+	    				}else {
+	    					h++;
+	    				}
+	    			}
+	    		}else {
+	    			while(capacidadeS > 0) {
+	    				if(ips.get(h).split(";")[2] == "disponivel") {
+	    					String porta =  ips.get(h).split(";")[1];
+	    					int p = new Integer(porta);
+	    					new ThreadClient(ips.get(h).split(";")[0], p, req, h).start();
+			    			ocupadosM--;
+			    			ips.remove(h);
+			    			ips.add(ips.get(h).split(";")[0] + ";" + p + ";" + "indisponivel");
+			    			h++;
+	    				}else {
+	    					h++;
+	    				}
+	    			}
+	    		}
+	    		
+	    		String q = readDataServer();
+	    		
+	    		//SE FOR PRA ENVIAR A RESPOSTA PARA O CLIENTE, ADICIONAR ISSO E NÃO FECHAR A CONEXÃO ACIMA:
+	    		//returnResultToClient(readDataServer());
+	    		//NÃO ACHO QUE SEJA NECESSÁRIO, POIS O MODELO NÃO COBRE O TEMPO DE RETORNO DA REQUISIÇÃO
+	    		
+	    		master.createConnection();
 			}
-			req.clear();
-			contThread = 0;
-			descarte =0;
-			
-			
-			
-			//welcomeSocket.close();
-			//connectionSocket.close();
 			
 		}
+	}
+	
+	static void atualizaCapacidade(String ip, int port, int h) {
+		ips.remove(h);
+		ips.add(ips.get(h).split(";")[0] + ";" + port + ";" + "disponivel");
+	}
+	
+	private static ArrayList<String> getIps() {
+		ArrayList<String> ips = new ArrayList();
+		File f = new File("ipServidores.txt");
+		try {
+            FileReader fr = new FileReader(f);
+            BufferedReader br = new BufferedReader(fr);
+            String st; 
+      	  	while ((st = br.readLine()) != null && st.contains(";")) {
+      			ips.add(st + ";disponivel");
+      	  	}
+      	  	//qtdServer = ips.size();
+        } catch (IOException e) {
+            System.out.println("###### Erro: "+e.getMessage());
+            e.printStackTrace();
+        }
+		
+		return ips;
+		
+	}
+	
+	public static void returnResultToClient(String result) throws IOException {
+		OutputStream socketStream = connectionSocket.getOutputStream();
+        ObjectOutputStream objectOutput = new ObjectOutputStream(socketStream);
+        
+        objectOutput.writeObject(result);
+        objectOutput.close();
+        socketStream.close();
 	}
 	
 	private static void salvaTempos(String tempoTotal ) {
@@ -127,118 +166,29 @@ public class Master {
 			}
 	}
 	
-	public void execute(String filePath, String ip, int port) throws FileNotFoundException, IOException {
-		//esse vai ser o método chamado por ClientManager
-		//long start = System.currentTimeMillis();
-				
-		String file = preparaArquivo(filePath); //ler o arquivo
-		//System.out.println("caminho: " + ip + port);
-		
-		createConnectionServer(ip, port); //conectar ao server
-		enviarArquivo(file); //enviar arquivo para o server
-	}
-	
-	private static ArrayList<String> getIps() {
-		ArrayList<String> ips = new ArrayList();
-		File f = new File("ipServidores.txt");
-		try {
-            FileReader fr = new FileReader(f);
-            BufferedReader br = new BufferedReader(fr);
-            String st; 
-      	  	while ((st = br.readLine()) != null && st.contains(";")) {
-      			ips.add(st);
-      	  	}
-      	  	//qtdServer = ips.size();
-        } catch (IOException e) {
-            System.out.println("###### Erro: "+e.getMessage());
-            e.printStackTrace();
-        }
-		
-		return ips;
-		
-	}
-
 	private void createConnection() throws IOException {
 		welcomeSocket = new ServerSocket(port);
-		//System.out.println("Port "+port+" opened!");
+		System.out.println("Port "+port+" opened!");
 		connectionSocket = welcomeSocket.accept();
-		//System.out.println("Server: new connection with client: " + connectionSocket.getInetAddress().getHostAddress());		
+		System.out.println("Server: new connection with client: " + connectionSocket.getInetAddress().getHostAddress());		
 	}
 	
-	private void createConnectionServer(String ipS, int portS) throws IOException {
-		clientSocket = new Socket(ipS, portS);
-	}
-
-	private String preparaArquivo(String filePath)  throws IOException{
-		
-		BufferedReader arqBuffer;
-		ArrayList<String> linhasArray = new ArrayList<>();
-		String linha;
-
-		arqBuffer = new BufferedReader(new FileReader(filePath));
-		linha = arqBuffer.readLine() + "\n";
-		linhasArray.add(linha);
-
-		while (linha != null) {
-			linha = arqBuffer.readLine();
-			linhasArray.add(linha);
-		}
-		arqBuffer.close();
-
-		linhasArray.remove(linhasArray.size() - 1);
-		linha = linhasArray.get(0);
-
-		for (int i = 1; i < linhasArray.size(); i++) {
-			linha += linha = linhasArray.get(i) + "\n";
-		}
-		return linha;
-	}
-	
-	private void enviarArquivo(String file) throws IOException {
-		
-		DataOutputStream dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
-		dataOutputStream.writeBytes(file);
-		dataOutputStream.flush();
-		System.out.println(readData());
-	    dataOutputStream.close();
-	    //clientSocket.close();
-	}
-	private void receiveFile() throws IOException {
-		String receivedFile = null;
-		
-		
-		long i = System.currentTimeMillis();
-		
-		while((System.currentTimeMillis() - i) < 5000) {
-			DataInputStream  dataInputStream = new DataInputStream(connectionSocket.getInputStream());
-			if (dataInputStream.available() > 0) {
-				req.add(dataInputStream.readLine());
-				//System.out.println("sa");
+	private String receive() throws IOException {
+		String received = null;
 				
-			}
-			//dataInputStream.close();
-			connectionSocket.close();
-			welcomeSocket.close();
-			createConnection();
-		}
+		DataInputStream  dataInputStream = new DataInputStream(connectionSocket.getInputStream());
 		
-		
-		
-		/*
-		while (true) {
+		while(true) {
 			if (dataInputStream.available() > 0) {
-				receivedFile = dataInputStream.readLine();
-				System.out.println("received = "+receivedFile);
-				
-				break;
+				received = dataInputStream.readLine();
+				System.out.println(received);
+				return received;
 			}
-		}*/
-		
-		
-		
+		}
+		//dataInputStream.close();
 	}
 	
-	private static String readData() {
+	private static String readDataServer() {
 	    try {
 	    InputStream is = clientSocket.getInputStream();
 	    ObjectInputStream ois = new ObjectInputStream(is);

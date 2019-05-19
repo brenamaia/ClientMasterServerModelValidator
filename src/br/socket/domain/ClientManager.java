@@ -34,74 +34,97 @@ import java.util.concurrent.CountDownLatch;
 public class ClientManager {
 
 	private static Socket clientSocket;
-	
-	private int port;
-	private String ip; 
-	private String filePath;
-	private static String tempoChegada;
-	
-	
-	/*
-	public ClientManager(String ip, int port) {
-		this.ip = ip;
-		this.port = port;
-	}*/
+	private static int descarte=0;
+
 	
 	public static void main(String[] args)  throws UnknownHostException, IOException {
 		
 		
-		
-		final CountDownLatch latch;
-		
-		ArrayList<String> ips =  getIps("ipServidores.txt");
-		String tempo = "1000";
+		//clientSocket = new Socket("localhost", 1234);
 		
 		
 		
-		latch = new CountDownLatch(5);
-		
-		//envia requisições a cada tempoChegada ms
-		int delay = 0;   // delay de 0ms
-		int interval = 1000;  // intervalo de AD msg.
+		int interval = 1000;  // INTERVALO AD. MODIFICAR PARA args[0] QUANDO ESTIVER PRONTO
 		Timer timer = new Timer();		
-		
-		final ClientManager client = new ClientManager();
-		
+				
 		timer.scheduleAtFixedRate(new TimerTask() {
-		        public void run() {
-		        	(new ThreadClient(latch, client, "origin.txt")).start();
-					
-		        }
-		    }, 0, interval);
-		/*
-		try {
-            latch.await();  
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }*/
-		//clientSocket.close();
-        
+	        public void run() {
+	        	DataOutputStream dataOutputStream;
+				try {
+					//CASO NÃO SEJA NECESSÁRIO ESTABELECER CONEXÃO PRA CADA REQUISIÇÃO, REMOVER ISSO E ADICIONAR LÁ EM CIMA
+					clientSocket = new Socket("localhost", 1234);
+					dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
+					//SOLICITA STATUS E RECEBE A RESPOSTA     
+					dataOutputStream.writeBytes("status");
+					//System.out.println("mandou");
+		    		//dataOutputStream.flush();
+		    		String status = readData();
+		    		dataOutputStream.close();
+		    		
+		    	
+		    		
+		    		int cp = new Integer(status);
+		    		System.out.println("status = " +cp);
+		    		
+		    		if(cp > 0) {
+		    			String dados = preparaArquivo("origin.txt"); //MODIFICAR PARA args[0] QUANDO ESTIVER PRONTO
+		    			dataOutputStream.writeBytes(dados); 
+		    			//dataOutputStream.flush();
+		    		}else {
+		    			descarte++;
+		    		}
+		    		
+		    		//SE FOR PRA ESPERAR A RESPOSTA, ADICIONAR ISSO:
+		    		//System.out.println(readData());
+		    		//NÃO ACHO QUE SEJA NECESSÁRIO, POIS O MODELO NÃO COBRE O TEMPO DE RETORNO DA REQUISIÇÃO
+		    		
+		    		//dataOutputStream.flush();
+		    		//dataOutputStream.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+	    		
+				
+	        }
+		}, 0, interval);
+	}
+	
+	private static String preparaArquivo(String filePath)  throws IOException{
 		
+		BufferedReader arqBuffer;
+		ArrayList<String> linhasArray = new ArrayList<>();
+		String linha;
+
+		arqBuffer = new BufferedReader(new FileReader(filePath));
+		linha = arqBuffer.readLine() + "\n";
+		linhasArray.add(linha);
+
+		while (linha != null) {
+			linha = arqBuffer.readLine();
+			linhasArray.add(linha);
+		}
+		arqBuffer.close();
+
+		linhasArray.remove(linhasArray.size() - 1);
+		linha = linhasArray.get(0);
+
+		for (int i = 1; i < linhasArray.size(); i++) {
+			linha += linha = linhasArray.get(i) + "\n";
+		}
+		return linha;
 	}
 	
-	private static ArrayList<String> getIps(String propertiesFile) {
-		ArrayList<String> ips =  new ArrayList<String>();
-		File f = new File(propertiesFile); //ipServidores.txt
-		try {
-            FileReader fr = new FileReader(f);
-            BufferedReader br = new BufferedReader(fr);
-            String st; 
-      	  	while ((st = br.readLine()) != null && st.contains(";")) {
-      			ips.add(st);
-      	  	}
-        } catch (IOException e) {
-            System.out.println("###### Erro: "+e.getMessage());
-            e.printStackTrace();
-        }
-		return ips;	
+	private static String readData() {
+	    try {
+	    InputStream is = clientSocket.getInputStream();
+	    ObjectInputStream ois = new ObjectInputStream(is);
+	     return (String)ois.readObject();
+	    } catch(Exception e) {
+	        return null;
+	    }   
 	}
 	
-	private static void salvaTempos(String tempoTotal ) {
+	private static void salvaDados(String tempoTotal ) {
 		try(FileWriter fw = new FileWriter("TempoClient.txt", true);
 			    BufferedWriter bw = new BufferedWriter(fw);
 			    PrintWriter out = new PrintWriter(bw))
@@ -111,24 +134,6 @@ public class ClientManager {
 			} catch (IOException e) {
 			    //exception handling left as an exercise for the reader
 			}
-	}
-	
-
-	public void enviarArquivoClient(String filePath) throws IOException {
-		
-		try {
-			clientSocket = new Socket("localhost", 1234);
-			DataOutputStream dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
-			dataOutputStream.writeBytes(filePath);
-			System.out.println(filePath);
-			dataOutputStream.flush();		
-			dataOutputStream.close();
-			//clientSocket.close();
-		}catch (SocketException erro1) {
-            System.err.println("pipe quebrado");
-            
-        }
-		
 	}
 		
 }

@@ -27,14 +27,14 @@ public class Server {
 	private static Socket connectionSocket;
 	private Integer port = 12345;
 	
+	static Server serv = new Server();
 	/*
 	 * Don't forget to pass the port as parameter
 	 */
 	public static void main(String[] args) throws UnknownHostException, IOException {
-		
-		
+			
 		while(true) {
-			Server serv = new Server();
+			
 			System.err.println("SERVER");
 			serv.createConnection();
 			

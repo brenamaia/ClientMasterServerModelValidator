@@ -1,18 +1,25 @@
 package br.socket.domain;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.Socket;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 
 class ThreadClient extends Thread {
     private CountDownLatch latch;
-	private ClientManager client;
-	private String filePath;
+    Socket clientSocket;
+	private String ip;
+	private int p;
+	private int h;
+	private String dados;
+	private Master master;
 
-    public ThreadClient(CountDownLatch latch, ClientManager client, String filePath) {
-        this.latch = latch;
-        this.client = client;
-        this.filePath = filePath;
+    public ThreadClient(String ip, int p, String dados, int h) {
+        this.ip = ip;
+        this.p = p;
+        this.dados = dados;
+        this.h = h;
     }
 
     public void run() {
@@ -21,7 +28,16 @@ class ThreadClient extends Thread {
         System.out.println("Thread "+n+" Started.");
 
 		try {
-			client.enviarArquivoClient(filePath);
+			clientSocket = new Socket(ip, p);
+			
+			DataOutputStream dataOutputStream;
+			dataOutputStream = new DataOutputStream(clientSocket.getOutputStream());
+			dataOutputStream.writeBytes(dados);
+			dataOutputStream.flush();
+			dataOutputStream.close();
+			
+			master.atualizaCapacidade(ip, p, h);
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
